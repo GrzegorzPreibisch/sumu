@@ -88,7 +88,7 @@ class Gadget():
         self._precompute_candidate_complement_scoring()
         self._init_mcmc()
         self._run_mcmc()
-        return self._sample_dags()
+        return self.Rs[0][0], self.Rs[0][1]
 
     def _find_candidate_parents(self):
 
@@ -145,12 +145,15 @@ class Gadget():
     def _run_mcmc(self):
         for i in range(self.burn_in):
             self.mcmc.sample()
-        self.Rs = list()
+        self.Rs = self.mcmc.sample()
+
         for i in range(self.iterations):
-            if i % self.thinning == 0:
-                self.Rs.append(self.mcmc.sample()[0])
-            else:
-                self.mcmc.sample()
+            temp_mcmc = self.mcmc.sample()
+            if temp_mcmc[1] > self.Rs[1]:
+                self.Rs = temp_mcmc
+
+        self.Rs = [self.Rs]
+
 
     def _sample_dags(self):
         ds = DAGR(self.score, self.C, tolerance=self.tolerance,
