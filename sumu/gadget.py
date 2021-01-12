@@ -13,7 +13,9 @@ from .CandidateRestrictedScore import CandidateRestrictedScore
 from .DAGR import DAGR as DAGR_precompute
 
 from .candidates import candidate_parent_algorithm
+import numpy as np
 
+from glmnet import ElasticNet
 
 class Data:
     """Class for holding data.
@@ -30,6 +32,7 @@ class Data:
     """
 
     def __init__(self, data_or_path, discrete=True, arities=False):
+
         self.discrete = discrete
         self.arities = arities
         path = type(data_or_path) == str
@@ -65,6 +68,7 @@ class Data:
 class Gadget():
 
     def __init__(self, **kwargs):
+        self.array = kwargs.get("array")
         self.data = kwargs.get("data")
         self.scoref = kwargs.get("scoref")
         self.ess = kwargs.get("ess")
@@ -88,7 +92,7 @@ class Gadget():
         self._precompute_candidate_complement_scoring()
         self._init_mcmc()
         self._run_mcmc()
-        return self.Rs[0][0], self.Rs[0][1]
+        return self.generate_final_dag()
 
     def _find_candidate_parents(self):
 
@@ -153,6 +157,30 @@ class Gadget():
                 self.Rs = temp_mcmc
 
         self.Rs = [self.Rs]
+
+    def generate_final_dag(self):
+        dag = self.Rs[0][0]
+        arr= self.array
+        previous_parent = list(dag[0])
+        final_dag = dict()
+
+        for i in range(1, len(dag)):
+            for j in dag[i]:
+                # code fro regression
+                y = arr[:, j]
+                x = np.zeros((arr.shape[0], len(previous_parent)))
+                for col in range(len(previous_parent)):
+                    x[:, col] = arr[:, previous_parent[col]]
+                m = ElasticNet()
+                m = m.fit(x, y)
+                # print(m.coef_path_)
+                final_dag[j] = list()
+                for v in range(len(m.coef_)):
+                    if m.coef_[v] != 0:
+                        final_dag[j].append((previous_parent[v], m.coef_[v]))  ## If intersept is 0 and changes order
+            # print(previous_parent, j)
+            previous_parent = list(set(previous_parent).union(dag[i]))
+        return final_dag
 
 
     def _sample_dags(self):
