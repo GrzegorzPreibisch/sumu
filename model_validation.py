@@ -63,7 +63,7 @@ def create_dataset(dim, number, chidren_num, parents_num):
     return np.array(new_df), dag
 
 
-test_arr, test_dag = create_dataset(25, 5000000, 4, 3)
+test_arr, test_dag = create_dataset(25, 5000, 4, 3)
 
 start = time.time()
 data = sumu.Data(test_arr, discrete=False)
