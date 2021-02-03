@@ -87,12 +87,18 @@ class Gadget():
 
     def sample(self):
         self._find_candidate_parents()
+        print("Step 0")
         self._precompute_scores_for_all_candidate_psets()
+        print("Step 1")
         self._precompute_candidate_restricted_scoring()
+        print("Step 2")
         self._precompute_candidate_complement_scoring()
+        print("Step 3")
         self._init_mcmc()
+        print("Step 4")
         self._run_mcmc()
-        return self.generate_final_dag()
+        print("Step 5")
+        return self # .generate_final_dag()
     def TL(self,x,y,pen_bic,pen_gic):
         m = ElasticNet()
         if len(x.shape)<2:
@@ -188,7 +194,7 @@ class Gadget():
 
         self.Rs = [self.Rs]
 
-    def generate_final_dag(self):
+    def generate_final_dag(self,pen_bic,pen_gic):
         dag = self.Rs[0][0]
         arr= self.array
         previous_parent = list(dag[0])
@@ -206,7 +212,7 @@ class Gadget():
                # m = m.fit(x, y)
 ### Tresholded LASSO
                 # print(m.coef_path_)
-                beta = self.TL(x,y,np.log(arr.shape[0]),np.log(arr.shape[0]))
+                beta = self.TL(x,y,pen_bic,pen_gic)
                 final_dag[j] = list()
                 for v in range(len(previous_parent)):
                     if beta[v] != 0:
