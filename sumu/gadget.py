@@ -106,14 +106,17 @@ class Gadget():
     
         m = m.fit(x, y)
         betas = m.coef_path_
+        intercepts = m.intercept_path_
         BIC = np.inf
         for i in range(betas.shape[1]):
-            RSS = np.sum((y-np.matmul(x,betas[:,i]))**2)
+            
+            RSS = np.sum((y-np.matmul(x,betas[:,i])-intercepts[i])**2)
             k = np.sum(betas[:,i]!=0)
             BIC_new  =  RSS+pen_bic*k
             if BIC_new < BIC :
                BIC = BIC_new
                beta_bic = betas[:,i]
+               intercept = intercepts[i]
         thresholds = beta_bic[beta_bic>0]
         thresholds.sort()
         beta_gic = np.zeros_like(beta_bic) 
@@ -121,14 +124,14 @@ class Gadget():
         for delta in thresholds:
             beta_thres = deepcopy(beta_bic)
             beta_thres[beta_thres< delta] = 0
-            RSS = np.sum((y-np.matmul(x,beta_thres))**2)
+            RSS = np.sum((y-np.matmul(x,beta_thres)-intercept)**2)
             k = np.sum(beta_thres!=0)
             GIC_new  =  RSS+pen_gic*k
             if GIC_new < GIC :
                GIC = GIC_new
                beta_gic = beta_thres
            
-        return beta_gic  
+        return beta_gic,intercept  
 
     def _find_candidate_parents(self):
 
@@ -199,6 +202,7 @@ class Gadget():
         arr= self.array
         previous_parent = list(dag[0])
         final_dag = dict()
+        intercept = dict()
 
         for i in range(1, len(dag)):
             for j in dag[i]:
@@ -207,19 +211,20 @@ class Gadget():
                 x = np.zeros((arr.shape[0], len(previous_parent)+1))
                 for col in range(len(previous_parent)):
                     x[:, col] = arr[:, previous_parent[col]]
-                x[:,len(previous_parent)] = 1
+                #x[:,len(previous_parent)] = 1
                # m = ElasticNet()
                # m = m.fit(x, y)
 ### Tresholded LASSO
                 # print(m.coef_path_)
-                beta = self.TL(x,y,pen_bic,pen_gic)
+                beta,inter = self.TL(x,y,pen_bic,pen_gic)
                 final_dag[j] = list()
+                intercept[j] = inter   
                 for v in range(len(previous_parent)):
                     if beta[v] != 0:
                         final_dag[j].append((previous_parent[v], beta[v]))  ## If intersept is 0 and changes order
             # print(previous_parent, j)
             previous_parent = list(set(previous_parent).union(dag[i]))
-        return final_dag
+        return final_dag,intercept
 
 
     def _sample_dags(self):
