@@ -13,7 +13,7 @@ df = pd.read_csv('test_data.csv')
 
 arr = np.array(df)
 
-data = sumu.Data(arr, discrete=False)
+data = sumu.Data(arr)
 
 params = {
 
@@ -30,7 +30,7 @@ params = {
           "iterations": 5000,
           "thinning": 10}
 
-g = sumu.Gadget(**params)
+g = sumu.Gadget(data=data,array=arr,burn_in=100,iterations=5000,thinning=10)
 dag = g.sample()
 end = time.time()
 print(dag)
