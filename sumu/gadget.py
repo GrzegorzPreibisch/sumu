@@ -47,6 +47,8 @@ default = {
     "stats_period": 15
 }
 
+
+
 from glmnet import ElasticNet
 from copy import deepcopy
 class Data:
@@ -111,7 +113,7 @@ class Data:
 
 class Gadget():
 
-    def __init__(self, *, data, score=None, prior=default["prior"],
+    def __init__(self, *, data, array, score=None, prior=default["prior"],
                  max_id=default["max_id"], K=None, d=None,
                  cp_algo=default["cp_algo"], cp_path=None,
                  mc3=default["mc3"],
@@ -122,6 +124,8 @@ class Gadget():
                  logfile=default["logfile"],
                  stats_period=default["stats_period"]):
         self.data = Data(data)
+        self.array = array
+        self.iterations = iterations
         if score is None:
             score = default["score"](self.data.discrete)
         if K is None:
