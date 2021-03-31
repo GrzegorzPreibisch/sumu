@@ -2,7 +2,8 @@ from collections import defaultdict
 import numpy as np
 from .utils.math_utils import log_minus_exp, subsets
 from .bnet import partition
-from .mcmc_moves import R_basic_move, R_swap_any, B_relocate_one, B_relocate_many, B_swap_adjacent, B_swap_nonadjacent, DAG_edgereversal
+from .mcmc_moves import R_basic_move, R_swap_any, B_relocate_one, B_relocate_many, B_swap_adjacent, B_swap_nonadjacent, DAG_edgerev
+from .stats import stats
 
 
 class LayeringMCMC:
@@ -446,36 +447,10 @@ class LayeringMCMC:
 
 
 class PartitionMCMC:
-    """Partition-MCMC sampler :cite:`kuipers:2017` with efficient scoring.
+    """Partition-MCMC sampler :footcite:`kuipers:2017` with efficient scoring.
     """
 
-    def __init__(self, C, score, d, temperature=1, stats=None):
-
-        self.stats = None
-        if stats is not None:
-            self.stats = stats
-            self.key = type(self).__name__
-            if self.key not in stats:
-                self.stats[self.key] = dict()
-            self.stats[self.key][temperature] = dict()
-            self.stats[self.key][temperature][self.R_basic_move.__name__] = dict()
-            self.stats[self.key][temperature][self.R_basic_move.__name__]["candidate-valid"] = dict()
-            self.stats[self.key][temperature][self.R_basic_move.__name__]["candidate-valid"]["n"] = 0
-            self.stats[self.key][temperature][self.R_basic_move.__name__]["candidate-valid"]["ratio"] = 0
-            self.stats[self.key][temperature][self.R_basic_move.__name__]["candidate-valid"]["accepted"] = 0
-            self.stats[self.key][temperature][self.R_basic_move.__name__]["candidate-invalid"] = dict()
-            self.stats[self.key][temperature][self.R_basic_move.__name__]["candidate-invalid"]["n"] = 0
-            self.stats[self.key][temperature][self.R_basic_move.__name__]["candidate-invalid"]["ratio"] = 0
-            self.stats[self.key][temperature][self.R_basic_move.__name__]["candidate-invalid"]["accepted"] = 0
-            self.stats[self.key][temperature][self.R_swap_any.__name__] = dict()
-            self.stats[self.key][temperature][self.R_swap_any.__name__]["candidate-valid"] = dict()
-            self.stats[self.key][temperature][self.R_swap_any.__name__]["candidate-valid"]["n"] = 0
-            self.stats[self.key][temperature][self.R_swap_any.__name__]["candidate-valid"]["ratio"] = 0
-            self.stats[self.key][temperature][self.R_swap_any.__name__]["candidate-valid"]["accepted"] = 0
-            self.stats[self.key][temperature][self.R_swap_any.__name__]["candidate-invalid"] = dict()
-            self.stats[self.key][temperature][self.R_swap_any.__name__]["candidate-invalid"]["n"] = 0
-            self.stats[self.key][temperature][self.R_swap_any.__name__]["candidate-invalid"]["ratio"] = 0
-            self.stats[self.key][temperature][self.R_swap_any.__name__]["candidate-invalid"]["accepted"] = 0
+    def __init__(self, C, score, d, temperature=1.0):
 
         self.n = len(C)
         self.C = C
@@ -483,8 +458,18 @@ class PartitionMCMC:
         self.score = score
         self.d = d
         self.stay_prob = 0.01
-        self._moves = [R_basic_move, R_swap_any]
-        self._moveprobs = [0.5, 0.5]
+        if self.temp != 1:
+            self._moves = [self.R_basic_move, self.R_swap_any]
+            self._moveprobs = [0.5, 0.5]
+        else:
+            self._moves = [self.R_basic_move, self.R_swap_any, self.DAG_edgerev]
+            self._moveprobs = [0.25, 0.25, 0.5]
+
+        for move in self._moves:
+            stats["mcmc"][self.temp][move.__name__]["proposed"] = 0
+            stats["mcmc"][self.temp][move.__name__]["accepted"] = 0
+            stats["mcmc"][self.temp][move.__name__]["accep_ratio"] = 0
+
         self.R = self._random_partition()
         self.R_node_scores = self._pi(self.R)
         self.R_score = self.temp * sum(self.R_node_scores)
@@ -495,6 +480,9 @@ class PartitionMCMC:
 
     def R_swap_any(self, **kwargs):
         return R_swap_any(**kwargs)
+
+    def DAG_edgerev(self, **kwargs):
+        return DAG_edgerev(**kwargs)
 
     def _valid(self, R):
         if sum(len(R[i]) for i in range(len(R))) != self.n:
@@ -589,34 +577,67 @@ class PartitionMCMC:
 
         return R_node_scores
 
+
+    def _rescore(self, R, R_prime):
+        rescore = list()
+        UT = dict()
+        U = set()
+        T = set()
+        for i in range(len(R)):
+            for u in R[i]:
+                UT[u] = (U, T)
+            U = U.union(R[i])
+            T = R[i]
+        U = set()
+        T = set()
+        for i in range(len(R_prime)):
+            for u in R_prime[i]:
+                if UT[u] != (U, T):
+                    rescore.append(u)
+            U = U.union(R_prime[i])
+            T = R_prime[i]
+        return rescore
+    
+
     def sample(self):
 
         if np.random.rand() > self.stay_prob:
             move = np.random.choice(self._moves, p=self._moveprobs)
-            if not move(R=self.R, validate=True):
-                return self.R, self.R_score
+            stats["mcmc"][self.temp][move.__name__]["proposed"] += 1
+            if move.__name__ == 'DAG_edgerev':
+                DAG, _ = self.score.sample_DAG(self.R)
+                if not move(DAG=DAG, score=self.score, R=self.R, validate=True):
+                    return self.R, self.R_score
+                # NOTE: DAG equals DAG_prime after this, since no copy
+                #       is made. If necessary, make one.
+                DAG_prime, ap, edge = move(DAG=DAG, score=self.score, R=self.R)
+                R_prime = partition(DAG_prime)
 
-            R_prime, q, q_rev, rescore = move(R=self.R)
+                R_prime_node_scores = self._pi(R_prime,
+                                               R_node_scores=self.R_node_scores,
+                                               rescore=self._rescore(self.R, R_prime))
+
+            elif move.__name__[0] == 'R':
+
+                if not move(R=self.R, validate=True):
+                    return self.R, self.R_score
+
+                R_prime, q, q_rev, rescore = move(R=self.R)
+                R_prime_node_scores = self._pi(R_prime, R_node_scores=self.R_node_scores, rescore=rescore)
+                ap = np.exp(self.temp * sum(R_prime_node_scores) - self.R_score)*q_rev/q
+
             R_prime_valid = self._valid(R_prime)
-            if self.stats:
-                if R_prime_valid:
-                    self.stats[self.key][self.temp][move.__name__]["candidate-valid"]["n"] += 1
-                else:
-                    self.stats[self.key][self.temp][move.__name__]["candidate-invalid"]["n"] += 1
 
             if self.d == 0 and not R_prime_valid:
                 return self.R, self.R_score
 
-            R_prime_node_scores = self._pi(R_prime, R_node_scores=self.R_node_scores, rescore=rescore)
-
             # make this happen in log space?
             # if -np.random.exponential() < self.temp * sum(R_prime_node_scores) - self.R_score + np.log(q_rev) - np.log(q):
-            if np.random.rand() < np.exp(self.temp * sum(R_prime_node_scores) - self.R_score)*q_rev/q:
-                if self.stats:
-                    if R_prime_valid:
-                        self.stats[self.key][self.temp][move.__name__]["candidate-valid"]["accepted"] += 1
-                    else:
-                        self.stats[self.key][self.temp][move.__name__]["candidate-invalid"]["accepted"] += 1
+            if np.random.rand() < ap:
+                stats["mcmc"][self.temp][move.__name__]["accepted"] += 1
+                a = stats["mcmc"][self.temp][move.__name__]["accepted"]
+                p = stats["mcmc"][self.temp][move.__name__]["proposed"]
+                stats["mcmc"][self.temp][move.__name__]["accep_ratio"] = a/p
                 self.R = R_prime
                 self.R_node_scores = R_prime_node_scores
                 self.R_score = self.temp * sum(self.R_node_scores)
@@ -626,31 +647,23 @@ class PartitionMCMC:
 
 class MC3:
 
-    def __init__(self, chains, stats=None):
+    def __init__(self, chains):
 
-        self.stats = None
-        if stats is not None:
-            self.stats = stats
-            self.stats[type(self).__name__] = dict()
-            self.stats[type(self).__name__]["n chains"] = len(chains)
-            self.stats[type(self).__name__]["temperatures"] = [round(c.temp, 3) for c in chains]
-            self.stats[type(self).__name__]["swaps proposed"] = [0]*len(chains)
-            self.stats[type(self).__name__]["swaps accepted"] = [0]*len(chains)
+        stats["mc3"]["proposed"] = np.zeros(len(chains)-1)
+        stats["mc3"]["accepted"] = np.zeros(len(chains)-1)
         self.chains = chains
 
     def sample(self):
         for c in self.chains:
             c.sample()
         i = np.random.randint(len(self.chains) - 1)
-        if self.stats:
-            self.stats[type(self).__name__]["swaps proposed"][i] += 1
+        stats["mc3"]["proposed"][i] += 1
         ap = sum(self.chains[i+1].R_node_scores)*self.chains[i].temp
         ap += sum(self.chains[i].R_node_scores)*self.chains[i+1].temp
         ap -= sum(self.chains[i].R_node_scores)*self.chains[i].temp
         ap -= sum(self.chains[i+1].R_node_scores)*self.chains[i+1].temp
         if -np.random.exponential() < ap:
-            if self.stats:
-                self.stats[type(self).__name__]["swaps accepted"][i] += 1
+            stats["mc3"]["accepted"][i] += 1
             R_tmp = self.chains[i].R
             R_node_scores_tmp = self.chains[i].R_node_scores
             self.chains[i].R = self.chains[i+1].R

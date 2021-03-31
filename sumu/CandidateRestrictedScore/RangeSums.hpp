@@ -5,7 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include "headers.hpp"
-#include "Breal.hpp"
+#include "../scores/Breal.hpp"
 
 #define bm32 uint32_t
 #define Treal	B2real 
@@ -82,16 +82,17 @@ void fzt_inpl(Treal* b, bm32 n){ // 550 adds per microsecond, Treal = Breal.
 //
 class IntersectSums {
 public:
-	IntersectSums(int K0, double* w, double eps0);
+    IntersectSums(int K0, double* w, double eps0);
 	~IntersectSums();
 	double scan_sum(bm32 U, bm32 T);
+	double scan_sum(bm32 U);
 	bm32   scan_rnd(bm32 U, bm32 T, double wcum);
+	bm32   scan_rnd(bm32 U, double wcum);
+	vector<ws32>	s;	// Scores, pairs (set, weight) sorted by weight.
 
 private:
 	int				K;	// Size of the ground set.
-	vector<ws32>	s;	// Scores, pairs (set, weight) sorted by weight.
-	double 			eps;// Tolerated relative error. 
-
+	double 			eps;// Tolerated relative error.
 	void prune(double *w);	
 };
 
@@ -107,7 +108,7 @@ void IntersectSums::prune(double *w){
 	for (bm32 S = 1; S < l; ++S){ keepit[S] = false; } keepit[0] = true;	
 	for (bm32 R = 0; R < l; ++R){ a[R].set_log(w[R]); c[R] = a[R]; a[R] >>= K - popcount(R); c[R] <<= tol; }
 	for (int j = 0; j < K; ++j){
-		for (bm32 R = 0; R < l; ++R) if (R & (1L << j)) b[R] = a[R]; else b[R] = 0L; 
+		for (bm32 R = 0; R < l; ++R) if (R & (1L << j)) b[R] = a[R]; else b[R] = (int64_t) 0L; 
 		fzt_inpl(b, K);
 		for (bm32 S = 1; S < l; ++S) if (S & (1L << j)) keepit[S] |= (c[S] > b[S]); 	
 	}
@@ -115,7 +116,7 @@ void IntersectSums::prune(double *w){
 	for (bm32 S = 0; S < l; ++S) if (keepit[S]){ c[S] >>= tol; s.push_back({ S, c[S] }); }
 	
 	delete[] a; delete[] b; delete[] c; delete[] keepit;
-	cout << " l = " << l << ", after pruning: " << s.size() << ", tol = " << tol << endl;
+	// cout << " l = " << l << ", after pruning: " << s.size() << ", tol = " << tol << endl;
 }
 
 double IntersectSums::scan_sum(bm32 U, bm32 T){
@@ -139,9 +140,10 @@ double IntersectSums::scan_sum(bm32 U, bm32 T){
 			sum += score; ++count;
 		}
 	}
-	cout << " (count = " << count << ") ";
+	// cout << " (count = " << count << ") ";
 	return sum.get_log();
 }
+
 bm32 IntersectSums::scan_rnd(bm32 U, bm32 T, double wcum){ // Returns the first set when the cumulative weight exceeds wcum.
 	int m = s.size();
 	Treal sum; sum = 0.0; 
@@ -150,7 +152,8 @@ bm32 IntersectSums::scan_rnd(bm32 U, bm32 T, double wcum){ // Returns the first 
 	for (; i < m; ++i){
 		P = s[i].set; 
 		if ( subseteq(P, U) && intersects(P, T) ) {
-			sum = s[i].weight; ++i; 
+			sum = s[i].weight; ++i;
+			// cout << sum.get_log() << " ";
 			if (sum > target) i = m; 
 			break;
 		}
@@ -158,8 +161,59 @@ bm32 IntersectSums::scan_rnd(bm32 U, bm32 T, double wcum){ // Returns the first 
 	for (; i < m; ++i){
 		P = s[i].set; 
 		if ( subseteq(P, U) && intersects(P, T) ) {
-			Treal score = s[i].weight; sum += score; 
+			Treal score = s[i].weight; sum += score;
+			// cout << sum.get_log() << " ";
 			if (sum > target) break; 
+		}
+	}
+	// cout << endl;
+	// cout << "P: " << P << ", i: " << i << ", wcum: " << wcum << endl;
+	return P;
+}
+
+double IntersectSums::scan_sum(bm32 U){
+	int m = s.size(); int count = 0;
+	Treal sum; sum = 0.0;
+	Treal slack; slack = eps/m;
+	Treal factor; factor = 0.0;
+	int i = 0;
+	for (; i < m; ++i){
+		bm32 P = s[i].set;
+		if ( subseteq(P, U) ) {
+			sum = s[i].weight; factor = sum * slack;
+			++i; ++count; break;
+		}
+	}
+	for (; i < m; ++i){
+		bm32 P = s[i].set;
+		if ( subseteq(P, U) ) {
+			Treal score; score = s[i].weight;
+			if (score < factor) break;
+			sum += score; ++count;
+		}
+	}
+	return sum.get_log();
+}
+
+bm32 IntersectSums::scan_rnd(bm32 U, double wcum){
+	int m = s.size();
+	Treal sum; sum = 0.0;
+	Treal target; target.set_log(wcum);
+	int i = 0; bm32 P = 0L;
+	for (; i < m; ++i){
+		P = s[i].set;
+		if ( subseteq(P, U) ) {
+			sum = s[i].weight; ++i;
+			// cout << sum.get_log() << " ";
+			if (sum > target) i = m;
+			break;
+		}
+	}
+	for (; i < m; ++i){
+		P = s[i].set;
+		if ( subseteq(P, U) ) {
+			Treal score = s[i].weight; sum += score;
+			if (sum > target) break;
 		}
 	}
 	return P;

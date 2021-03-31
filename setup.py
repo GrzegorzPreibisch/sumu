@@ -3,9 +3,12 @@ import os
 import pathlib
 import setuptools
 from distutils.core import setup, Extension
+from distutils.command.clean import clean as Clean
 import distutils.util
+import shutil
 from Cython.Build import cythonize
 import numpy
+
 
 # The directory containing this file
 HERE = pathlib.Path(__file__).parent
@@ -14,9 +17,17 @@ HERE = pathlib.Path(__file__).parent
 README = (HERE / "README.md").read_text(encoding='utf-8')
 
 
-COMPILE_OPTIONS = []
-LINK_OPTIONS = []
+COMPILE_OPTIONS = list()
+LINK_OPTIONS = list()
+COMPILER_DIRECTIVES = dict()
+DEFINE_MACROS = list()
 
+COMPILER_DIRECTIVES['profile'] = True
+COMPILER_DIRECTIVES['linetrace'] = True
+
+# To allow coverage analysis for Cython modules
+if os.environ.get("CYTHON_TRACE") == "1":
+    DEFINE_MACROS.append(("CYTHON_TRACE", "1"))
 
 if os.name == "nt":
     # This is for Windows.
@@ -29,7 +40,7 @@ if os.name == "posix":
     # Trying to use the oldest possible standard for maximum
     # compatibility. Maybe even older would be possible with current
     # extensions.
-    COMPILE_OPTIONS += ["-std=c++11", "-Wall", "-O3"]
+    COMPILE_OPTIONS += ["-std=c++14", "-Wall", "-O3"]
 
 
 def is_new_osx():
@@ -61,6 +72,39 @@ try:
 except AttributeError:
     numpy_include = numpy.get_numpy_include()
 
+
+# Copied from scikit-learn
+class CleanCommand(Clean):
+    description = "Remove build artifacts from the source tree"
+
+    def run(self):
+        Clean.run(self)
+        # Remove c files if we are not within a sdist package
+        cwd = os.path.abspath(os.path.dirname(__file__))
+        remove_c_files = not os.path.exists(os.path.join(cwd, 'PKG-INFO'))
+        if remove_c_files:
+            print('Will remove generated .c files')
+        if os.path.exists('build'):
+            shutil.rmtree('build')
+        for dirpath, dirnames, filenames in os.walk('sumu'):
+            for filename in filenames:
+                if any(filename.endswith(suffix) for suffix in
+                       (".so", ".pyd", ".dll", ".pyc")):
+                    os.unlink(os.path.join(dirpath, filename))
+                    continue
+                extension = os.path.splitext(filename)[1]
+                if remove_c_files and extension in ['.c', '.cpp']:
+                    pyx_file = str.replace(filename, extension, '.pyx')
+                    if os.path.exists(os.path.join(dirpath, pyx_file)):
+                        os.unlink(os.path.join(dirpath, filename))
+            for dirname in dirnames:
+                if dirname == '__pycache__':
+                    shutil.rmtree(os.path.join(dirpath, dirname))
+
+
+cmdclass = {'clean': CleanCommand}
+
+
 exts = [
 
     Extension(
@@ -68,6 +112,7 @@ exts = [
         sources=["sumu/scores/_scorer.pyx"],
         include_dirs=["sumu/scores", numpy_include],
         language='c++',
+        define_macros=DEFINE_MACROS,
         extra_compile_args=COMPILE_OPTIONS,
         extra_link_args=LINK_OPTIONS),
 
@@ -77,6 +122,7 @@ exts = [
                  "sumu/zeta_transform/zeta_transform.cpp"],
         include_dirs=["sumu/CandidateComplementScore"],
         language='c++',
+        define_macros=DEFINE_MACROS,
         extra_compile_args=COMPILE_OPTIONS,
         extra_link_args=LINK_OPTIONS),
 
@@ -86,6 +132,7 @@ exts = [
                  "sumu/zeta_transform/zeta_transform.cpp"],
         include_dirs=["sumu/DAGR"],
         language='c++',
+        define_macros=DEFINE_MACROS,
         extra_compile_args=COMPILE_OPTIONS,
         extra_link_args=LINK_OPTIONS),
 
@@ -94,6 +141,7 @@ exts = [
         sources=['sumu/zeta_transform/_zeta_transform.pyx',
                  'sumu/zeta_transform/zeta_transform.cpp'],
         language='c++',
+        define_macros=DEFINE_MACROS,
         extra_compile_args=COMPILE_OPTIONS,
         extra_link_args=LINK_OPTIONS),
 
@@ -104,6 +152,7 @@ exts = [
         sources=['sumu/weight_sum/_weight_sum.pyx',
                  'sumu/weight_sum/weight_sum.cpp'],
         language='c++',
+        define_macros=DEFINE_MACROS,
         extra_compile_args=COMPILE_OPTIONS,
         extra_link_args=LINK_OPTIONS),
 
@@ -113,6 +162,7 @@ exts = [
                  'sumu/aps/aps-0.9.1/aps/simple_modular.cpp'],
         include_dirs=["sumu/aps/aps-0.9.1/aps", numpy_include],
         language='c++',
+        define_macros=DEFINE_MACROS,
         extra_compile_args=COMPILE_OPTIONS,
         extra_link_args=LINK_OPTIONS)
 
@@ -153,5 +203,6 @@ setup(
         "numpy",
         "scipy"
     ],
-    ext_modules=cythonize(exts, language_level="3")
+    cmdclass=cmdclass,
+    ext_modules=cythonize(exts, language_level="3", compiler_directives=COMPILER_DIRECTIVES)
 )
