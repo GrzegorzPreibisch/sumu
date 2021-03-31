@@ -53,7 +53,7 @@ p = 20
 
 dag = generate_dag(p,L=5)
 data = generate_data(n,p,dag) 
-data_sumu = sumu.Data(data,discrete =False)          
+data_sumu = sumu.Data(data)
  
 params = {
 
@@ -70,7 +70,7 @@ params = {
     "iterations": 5000,
     "thinning": 10}
 
-g = sumu.Gadget(**params)
+g = sumu.Gadget(data=data_sumu,array=data,burn_in=10,iterations=5000,thinning=10)
 h = g.sample()
 for c in range(1,50):
  dag_est1, intercept = h.generate_final_dag(pen_bic= np.log(n),pen_gic=c*np.log(p))
