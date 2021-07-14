@@ -48,35 +48,22 @@ def compute_stats(dag_est,dag_true,p):
     TN =  np.sum((mat_t-1)*(mat_e-1))
     FN =   -np.sum((mat_t)*(mat_e-1))
     return TP,FP,TN,FN,WD, np.sum(mat_t),np.sum(mat_e)
-n = 50
+n = 100
 p = 20
 
 dag = generate_dag(p,L=5)
 data = generate_data(n,p,dag) 
 data_sumu = sumu.Data(data)
  
-params = {
 
-    "array":data,
-    "data": data_sumu,
-    "scoref": "bge",  # Or "bdeu" for discrete data.
-    # "ess": 10,        # If using BDeu.
-    "max_id": -1,
-    "K": 5,
-    "d": 5,
-    "cp_algo": "greedy-lite",
-    "mc3_chains": 15,
-    "burn_in": 10,
-    "iterations": 5000,
-    "thinning": 10}
-
-g = sumu.Gadget(data=data_sumu,array=data,burn_in=10,iterations=5000,thinning=10)
-h = g.sample()
+g = sumu.Gadget(data=data_sumu)
+g.sample()
 for c in range(1,50):
- dag_est1, intercept = h.generate_final_dag(pen_bic= np.log(n),pen_gic=c*np.log(p))
+ dag_est1, intercept = g.generate_final_dag(pen_bic= np.log(n),pen_gic=c*np.log(p))
  print(c,compute_stats(dag_est1,dag,p))
 end = time.time()
 
 
 
 
+  

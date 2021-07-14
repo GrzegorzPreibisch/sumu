@@ -39,7 +39,7 @@ default = {
     "run_mode": {"name": "normal"},
     "mcmc": {
         "n_indep": 4,
-        "iters": 320000,
+        "iters": 50000,
         "mc3": 16,
         "burn_in": 0.5,
         "n_dags": 10000},
@@ -697,8 +697,8 @@ class Gadget():
                  ):
 
         self.data = Data(data)
-        self.array = array
-        self.iterations = iterations
+        self.array = self.data.data
+        #self.iterations = iterations
         if score is None:
             score = default["score"](self.data.discrete)
         defcons = dict()
@@ -933,7 +933,7 @@ class Gadget():
             else:
                 self.mcmc[i] = PartitionMCMC(self.C, self.score, self.p["cons"]["d"])
     def generate_final_dag(self,pen_bic,pen_gic):
-        dag = self.Rs[0][0]
+        dag = self.dags[0]
         arr= self.array
         previous_parent = list(dag[0])
         final_dag = dict()
@@ -1019,6 +1019,7 @@ class Gadget():
         t = 0
         t_elapsed = 0
         t0 = time.time()
+        R = -np.inf
         while mcmc_cond():
             if time.time() - timer > self.p["logging"]["stats_period"]:
                 timer = time.time()
@@ -1035,17 +1036,17 @@ class Gadget():
                     dag_count += 1
                     temp_mcmc, R_score = self.mcmc[i].sample()
                     R_scores[(t + iters_burn_in) % 1000, i] = R_score
+                    print(R_score,R)
                     
-                    
-                    if temp_mcmc[1] > R[1]:
-                        R = temp_mcmc
-                        dag, score = self.score.sample_DAG(R)
-                        self.dags = [dag]
-                        self.dag_scores.append(score)
+                    if R_score > R:
+                        R = R_score
+                        #dag, score = self.score.sample_DAG(R)
+                        self.dags = [temp_mcmc]
+                        self.dag_scores.append(R)
                     
             else:
                 for i in range(self.p["mcmc"]["n_indep"]):
-                    R, R_score = self.mcmc[i].sample()
+                    temp_mcmc, R_score = self.mcmc[i].sample()
                     R_scores[(t + iters_burn_in) % r, i] = R_score
             if t > 0 and t % (r-1) == 0:
                 self.trace.print_numpy(R_scores)
