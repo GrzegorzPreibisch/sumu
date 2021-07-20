@@ -1,25 +1,28 @@
+import bnlearn
 import numpy as np
 import sumu
 import time
+import bnlearn as bn
 
+start = time.time()
 def generate_dag(size, lam = 2, L = 10 ):
     order = np.random.choice(size,L,replace=False)
-    order[L-1] = size-1 
+    order[L-1] = size-1
     possible_parents = []
     dag = {}
     i = 0
     j = 0
- 
+
     for i in range(1,L):
       while j<= order[i]:
-        if j>order[0]:          
+        if j>order[0]:
           number_of_parents =  min(order[i-1],np.random.poisson(lam-1)+1)
           parents = np.random.choice(order[i-1],number_of_parents,replace=False)
           dag[j] = parents
         j+=1
-        
-    return dag       
- 
+
+    return dag
+
 
 def  generate_data(n ,p, dag):
     data = np.random.normal(1,1,(n,p))
@@ -37,7 +40,7 @@ def dag_to_mat(dag,p,est=True):
                 mat[i,x[0]] = 1
             else:
                 mat[i,x] =1
-    return mat 
+    return mat
 
 def compute_stats(dag_est,dag_true,p):
     mat_t = dag_to_mat(dag_true,p,False)
@@ -48,22 +51,47 @@ def compute_stats(dag_est,dag_true,p):
     TN =  np.sum((mat_t-1)*(mat_e-1))
     FN =   -np.sum((mat_t)*(mat_e-1))
     return TP,FP,TN,FN,WD, np.sum(mat_t),np.sum(mat_e)
-n = 100
-p = 20
 
-dag = generate_dag(p,L=5)
-data = generate_data(n,p,dag) 
+def dag_dict_to_list(dag: dict, model=True):
+    g = dict()
+    if model:
+        for key in dag:
+            temp_list = list()
+            for tuple in dag[key]:
+                temp_list.append(tuple[0])
+            g[key] = list(temp_list)
+    else:
+        for key in dag:
+            g[key] = list(dag[key])
+    dag_list = []
+    for node in g:
+        for edge in g[node]:
+            dag_list.append((node, edge))
+
+    return dag_list
+
+n = 200
+p = 40
+
+dag = generate_dag(p,L=7)
+data = generate_data(n,p,dag)
 data_sumu = sumu.Data(data)
- 
+
 
 g = sumu.Gadget(data=data_sumu)
 g.sample()
 for c in range(1,50):
  dag_est1, intercept = g.generate_final_dag(pen_bic= np.log(n),pen_gic=c*np.log(p))
  print(c,compute_stats(dag_est1,dag,p))
+
 end = time.time()
+print(dag)
+ground_truth = bnlearn.make_DAG(dag_dict_to_list(dag, model=False))
+print(dag_est1)
+model =  bnlearn.make_DAG(dag_dict_to_list(dag_est1,model=True))
 
 
+print(end - start)
+bn.compare_networks(ground_truth, model)
 
 
-  
