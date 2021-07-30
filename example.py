@@ -70,8 +70,30 @@ def dag_dict_to_list(dag: dict, model=True):
 
     return dag_list
 
-n = 200
-p = 40
+
+def final_dag_to_adj_matrix(g: dict, p:int , intercept:dict, key_to_id=None)->np.array:
+
+    if p !=  len(g.keys()):
+        print('We do not save all edges, p!= len(keys)')
+
+    M = np.zeros((p,p))
+
+    for parent in g.keys():
+        for child, est in g[parent]:
+            if key_to_id != None:
+                M[key_to_id[parent],key_to_id[child]]=est
+            else:
+                M[parent, child] = est
+    for edge in intercept:
+        if key_to_id != None:
+            M[key_to_id[edge], key_to_id[edge]] = intercept[edge]
+        else:
+            M[edge, edge] = intercept[edge]
+    return M
+
+
+n = 20
+p = 10
 
 dag = generate_dag(p,L=7)
 data = generate_data(n,p,dag)
@@ -80,14 +102,24 @@ data_sumu = sumu.Data(data)
 
 g = sumu.Gadget(data=data_sumu)
 g.sample()
-for c in range(1,50):
+for c in range(1,3):
  dag_est1, intercept = g.generate_final_dag(pen_bic= np.log(n),pen_gic=c*np.log(p))
  print(c,compute_stats(dag_est1,dag,p))
+ print(intercept)
+
+print(intercept)
 
 end = time.time()
 print(dag)
+
+
 ground_truth = bnlearn.make_DAG(dag_dict_to_list(dag, model=False))
 print(dag_est1)
+
+final_dag_matrix =final_dag_to_adj_matrix(dag_est1,p,intercept)
+
+np.savetxt('dag.txt',final_dag_matrix)
+
 model =  bnlearn.make_DAG(dag_dict_to_list(dag_est1,model=True))
 
 
