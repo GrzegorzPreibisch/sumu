@@ -39,9 +39,9 @@ default = {
     "run_mode": {"name": "normal"},
     "mcmc": {
         "n_indep": 4,
-        "iters": 50000,
+        "iters": 100000,
         "mc3": 16,
-        "burn_in": 0.5,
+        "burn_in": 0.1,
         "n_dags": 10000},
     "score": lambda discrete: {
         "name": "bdeu",
@@ -686,6 +686,7 @@ class Gadget():
 
     def __init__(self, *,
                  data,
+                 recurring,
                  run_mode=default["run_mode"],
                  mcmc=default["mcmc"],
                  score=None,
@@ -695,7 +696,7 @@ class Gadget():
                  catc=default["catc"],
                  logging=default["logging"]
                  ):
-
+        self.recurring = recurring
         self.data = Data(data)
         self.array = self.data.data
         #self.iterations = iterations
@@ -927,11 +928,11 @@ class Gadget():
         for i in range(self.p["mcmc"]["n_indep"]):
             if self.p["mcmc"]["mc3"] > 1:
                 self.mcmc[i] = MC3([PartitionMCMC(self.C, self.score, self.p["cons"]["d"],
-                                                  temperature=i/(self.p["mcmc"]["mc3"]-1))
+                                                  temperature=i/(self.p["mcmc"]["mc3"]-1), recurring=self.recurring)
                                     for i in range(self.p["mcmc"]["mc3"])])
 
             else:
-                self.mcmc[i] = PartitionMCMC(self.C, self.score, self.p["cons"]["d"])
+                self.mcmc[i] = PartitionMCMC(self.C, self.score, self.p["cons"]["d"], recurring=self.recurring)
     def generate_final_dag(self,pen_bic,pen_gic):
         dag = self.dags[0]
         arr= self.array
@@ -1020,6 +1021,7 @@ class Gadget():
         t_elapsed = 0
         t0 = time.time()
         R = -np.inf
+        counter = 0
         while mcmc_cond():
             if time.time() - timer > self.p["logging"]["stats_period"]:
                 timer = time.time()
@@ -1043,6 +1045,14 @@ class Gadget():
                         #dag, score = self.score.sample_DAG(R)
                         self.dags = [temp_mcmc]
                         self.dag_scores.append(R)
+                        print('bingo')
+                        counter+=1
+                        print(counter)
+                        if self.recurring:
+                            for i in range(self.p["mcmc"]["n_indep"]):
+                                self.mcmc[i].R_score = R_score
+                                self.R_max = temp_mcmc
+                                self.mcmc[i].counter = 0
                     
             else:
                 for i in range(self.p["mcmc"]["n_indep"]):
