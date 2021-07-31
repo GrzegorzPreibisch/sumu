@@ -450,8 +450,8 @@ class PartitionMCMC:
     """Partition-MCMC sampler :footcite:`kuipers:2017` with efficient scoring.
     """
 
-    def __init__(self, C, score, d, temperature=1.0):
-
+    def __init__(self, C, score, d,recurring, temperature=1.0):
+        self.recurring = recurring
         self.n = len(C)
         self.C = C
         self.temp = temperature
@@ -473,7 +473,9 @@ class PartitionMCMC:
         self.R = self._random_partition()
         self.R_node_scores = self._pi(self.R)
         self.R_score = self.temp * sum(self.R_node_scores)
-
+        self.R_score_max = self.temp * sum(self.R_node_scores)
+        self.R_max = self._random_partition()
+        self.counter =0
     def R_basic_move(self, **kwargs):
         # NOTE: Is there value in having these as methods?
         return R_basic_move(**kwargs)
@@ -602,6 +604,13 @@ class PartitionMCMC:
     def sample(self):
 
         if np.random.rand() > self.stay_prob:
+            self.counter +=1
+            if self.counter == 250 and self.recurring:
+                print('get over there!')
+                self.R_score = self.R_score_max
+                self.R = self.R_max
+                self.R_node_scores = self._pi(self.R)
+                self.counter = 0
             move = np.random.choice(self._moves, p=self._moveprobs)
             stats["mcmc"][self.temp][move.__name__]["proposed"] += 1
             if move.__name__ == 'DAG_edgerev':
