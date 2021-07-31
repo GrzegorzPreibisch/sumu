@@ -92,20 +92,21 @@ def final_dag_to_adj_matrix(g: dict, p:int , intercept:dict, key_to_id=None)->np
     return M
 
 
-n = 20
-p = 10
+n = 50
+p = 55
 
 dag = generate_dag(p,L=7)
 data = generate_data(n,p,dag)
 data_sumu = sumu.Data(data)
 
 
-g = sumu.Gadget(data=data_sumu)
+g = sumu.Gadget(data=data_sumu, recurring=True)
 g.sample()
 for c in range(1,3):
  dag_est1, intercept = g.generate_final_dag(pen_bic= np.log(n),pen_gic=c*np.log(p))
  print(c,compute_stats(dag_est1,dag,p))
  print(intercept)
+ stats_1  = compute_stats(dag_est1, dag, p)
 
 print(intercept)
 
@@ -126,4 +127,32 @@ model =  bnlearn.make_DAG(dag_dict_to_list(dag_est1,model=True))
 print(end - start)
 bn.compare_networks(ground_truth, model)
 
+g = sumu.Gadget(data=data_sumu,recurring=False)
+g.sample()
+for c in range(1,3):
+ dag_est2, intercept = g.generate_final_dag(pen_bic= np.log(n),pen_gic=c*np.log(p))
+ print(c,compute_stats(dag_est1,dag,p))
+ print(intercept)
+ stats_2  = compute_stats(dag_est2, dag, p)
 
+print(intercept)
+
+end = time.time()
+print(dag)
+
+
+ground_truth = bnlearn.make_DAG(dag_dict_to_list(dag, model=False))
+print(dag_est1)
+
+final_dag_matrix =final_dag_to_adj_matrix(dag_est1,p,intercept)
+
+np.savetxt('dag.txt',final_dag_matrix)
+
+model =  bnlearn.make_DAG(dag_dict_to_list(dag_est1,model=True))
+
+
+print(end - start)
+bn.compare_networks(ground_truth, model)
+print(stats_1)
+print(stats_2)
+print("""TP,FP,TN,FN,WD, np.sum(mat_t),np.sum(mat_e) """)
