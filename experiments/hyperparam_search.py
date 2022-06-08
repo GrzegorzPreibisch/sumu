@@ -50,7 +50,7 @@ def exp_decay(penalty,step):
         return penalty*step
 
 def division_decay(penalty,step, layer, previous_parent_len, parent_len, normalizing_factor):
-    new_penalty =  np.log(previous_parent_len)/normalizing_factor
+    new_penalty =  np.log(previous_parent_len)*normalizing_factor
     print(new_penalty)
     return new_penalty
 
