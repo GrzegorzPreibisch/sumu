@@ -39,7 +39,7 @@ default = {
     "run_mode": {"name": "normal"},
     "mcmc": {
         "n_indep": 4,
-        "iters": 100000,
+        "iters": 30000,
         "mc3": 16,
         "burn_in": 0.1,
         "n_dags": 10000},
@@ -933,13 +933,22 @@ class Gadget():
 
             else:
                 self.mcmc[i] = PartitionMCMC(self.C, self.score, self.p["cons"]["d"], recurring=self.recurring)
-    def generate_final_dag(self,pen_bic,pen_gic):
+    
+    def linear_pattern(penalty,step, epoch, previous_parents_len, parents_len, normalizing_factor):
+        return penalty + step
+    
+    def generate_final_dag(self,pen_bic,pen_gic, step_bic , step_gic,normalizing_factor, penalty_bic_decay_pattern = linear_pattern, penalty_gic_decay_pattern = linear_pattern):
         dag = self.dags[0]
         arr= self.array
         previous_parent = list(dag[0])
         final_dag = dict()
         intercept = dict()
-
+        
+        penalty_bic = pen_bic
+        penalty_gic = pen_gic
+        penalty_bic = penalty_bic_decay_pattern(penalty_bic,step_bic, 0, len(previous_parent), len(previous_parent),normalizing_factor)
+        penalty_gic = penalty_gic_decay_pattern(penalty_gic,step_gic, 0, len(previous_parent),  len(previous_parent), normalizing_factor)
+ 
         for i in range(1, len(dag)):
             for j in dag[i]:
                 # code fro regression
@@ -947,13 +956,17 @@ class Gadget():
                 x = np.zeros((arr.shape[0], len(previous_parent)+1))
                 for col in range(len(previous_parent)):
                     x[:, col] = arr[:, previous_parent[col]]
-                beta,inter = self.TL(x,y,pen_bic,pen_gic)
+                beta,inter = self.TL(x,y,penalty_bic,penalty_gic)
                 final_dag[j] = list()
                 intercept[j] = inter   
                 for v in range(len(previous_parent)):
                     if beta[v] != 0:
                         final_dag[j].append((previous_parent[v], beta[v]))  ## If intersept is 0 and changes order
+            previous_parent_len = len(set(previous_parent))
             previous_parent = list(set(previous_parent).union(dag[i]))
+            print('layer',i,'penalty bic', penalty_bic, 'penalty gic', penalty_gic)
+            penalty_bic = penalty_bic_decay_pattern(penalty_bic,step_bic, i, previous_parent_len, len(previous_parent),normalizing_factor)
+            penalty_gic = penalty_gic_decay_pattern(penalty_gic,step_gic, i, previous_parent_len,  len(previous_parent), normalizing_factor)
         return final_dag,intercept
         
     def _mcmc_run(self):
