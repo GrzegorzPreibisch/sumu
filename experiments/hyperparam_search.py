@@ -1,0 +1,130 @@
+# -*- coding: utf-8 -*-
+
+import numpy as np
+import pandas as pd
+import sumu
+import time
+import random
+from sklearn import preprocessing
+
+from glmnet import ElasticNet
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import log_loss
+
+def dag_to_mat(dag, p, est=True):
+    mat = np.zeros((p,p))
+    for i in range(p):
+       if i in dag:
+         for x in dag[i]:
+            if est:
+                mat[i,x[0]] = 1
+            else:
+                mat[i,x] =1
+    return mat
+
+
+def dag_to_mat_true(arcs, colnames):
+    p = len(colnames)
+    mat = np.zeros((p,p))
+    for arc in arcs:
+        mat[arc[1], arc[0]] = 1
+    return mat
+
+def compute_stats(dag_est, dag_true, p):
+    mat_t = dag_true
+    mat_e = dag_to_mat(dag_est,p,True)
+    TP =  np.sum(mat_t*mat_e)
+    WD =  np.sum(mat_t*mat_e.transpose())
+    FP =  -np.sum((mat_t-1)*mat_e)
+    TN =  np.sum((mat_t-1)*(mat_e-1))
+    FN =   -np.sum((mat_t)*(mat_e-1))
+    TPR = TP/(TP + FN)
+    FPR = FP/(FP + TN)
+    diff = np.abs(mat_t - mat_e)
+    diff = diff + diff.transpose()
+    diff[diff > 1] = 1  # Ignoring the double edges.
+    SHD = np.sum(diff)/2
+    return TPR,FPR,SHD, TP,FP,TN,FN,WD, np.sum(mat_t),np.sum(mat_e)
+
+def exp_decay(penalty,step):
+        return penalty*step
+
+def division_decay(penalty,step, layer, previous_parent_len, parent_len, normalizing_factor):
+    new_penalty =  np.log(previous_parent_len)/normalizing_factor
+    print(new_penalty)
+    return new_penalty
+
+def division_decay_bic(penalty,step, layer, previous_parent_len, parent_len, normalizing_factor):
+    return penalty
+
+def experiment(array, num_var,dag_true, sizes, b_start_coef_list, g_start_coef_list, 
+decay_bic_list, decay_gic_list , penalty_bic_decay_pattern,
+ penalty_gic_decay_pattern,filename, N, recurring = False):
+    result = []
+    statistics = []
+    for i in range(N):
+        for size in sizes:
+            stats = np.zeros(10)
+            np.random.shuffle(arr)
+            sample = arr[0:size]
+            data = sumu.Data(sample)
+            g =  sumu.Gadget(data=data, recurring=recurring)
+            g.sample()
+            for b_start_coef in b_start_coef_list:
+                for g_start_coef in g_start_coef_list:
+                    for decay_bic in decay_bic_list:
+                        for decay_gic in decay_bic_list:
+                            b_penalty = np.log(size)*b_start_coef
+                            g_penalty = np.log(num_var)*g_start_coef
+                            dag_est1, intercept = g.generate_final_dag(pen_bic= b_penalty, pen_gic=g_penalty,
+                            step_bic = decay_bic, step_gic = decay_gic,
+                                penalty_bic_decay_pattern = penalty_bic_decay_pattern, penalty_gic_decay_pattern = penalty_gic_decay_pattern, normalizing_factor = g_start_coef)
+                            comp = compute_stats(dag_est1, dag_true, num_var)
+                            statistics.append([i,size, b_start_coef, g_start_coef, decay_bic,decay_gic , comp[0], comp[1],comp[2]])
+    df = pd.DataFrame(statistics, columns = ['Experiment_number','size', 'b_start_coef', 'g_start_coef', 'decay_bic','decay_gic','TPR','FPR','SHD' ])
+    df.to_csv(filename)
+    print(df) 
+
+    return statistics, result
+
+sizes = [300, 1000]
+
+############
+############  ecoli70
+print('ecoli')
+
+
+start = time.time()
+
+df = pd.read_csv('../datasets/ecoli70.csv', sep = ';')
+arr = np.array(df)
+scaler = preprocessing.StandardScaler().fit(arr)
+arr = scaler.transform(arr)
+
+
+colnames = list(df.columns.values.tolist())
+arcs = pd.read_csv('../datasets/ecoli70_arcs.csv', sep = ';')
+
+arcs = np.array(arcs)
+cols = {}
+for i in range(len(colnames)):
+    cols[colnames[i]] = i
+
+arcs_num = []
+for arc in arcs:
+    arcs_num.append([cols[arc[0]], cols[arc[1]]])
+
+dag_true = dag_to_mat_true(arcs_num, colnames)
+
+
+statistics, result = experiment(arr, 46, dag_true, sizes, b_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], g_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], 
+decay_bic_list=[0], decay_gic_list =[0],
+ penalty_bic_decay_pattern = division_decay_bic, 
+ penalty_gic_decay_pattern =division_decay,filename= 'different_decay.csv',N=2)
+
+    # statistics, result = experiment(arr, 46, dag_true, sizes, b_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], g_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], 
+    # decay_bic_list=[0], decay_gic_list =[0],
+    # penalty_bic_decay_pattern = division_decay, 
+    # penalty_gic_decay_pattern =division_decay,filename= 'same_decay.csv',N=1)
+
+
