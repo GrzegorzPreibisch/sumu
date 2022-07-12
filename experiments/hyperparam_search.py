@@ -67,7 +67,10 @@ decay_bic_list, decay_gic_list , penalty_bic_decay_pattern,
             stats = np.zeros(10)
             np.random.shuffle(arr)
             sample = arr[0:size]
+            # sample
+            # warstwy
             data = sumu.Data(sample)
+            
             g =  sumu.Gadget(data=data, recurring=recurring)
             g.sample()
             for b_start_coef in b_start_coef_list:
@@ -76,7 +79,7 @@ decay_bic_list, decay_gic_list , penalty_bic_decay_pattern,
                         for decay_gic in decay_bic_list:
                             b_penalty = np.log(size)*b_start_coef
                             g_penalty = np.log(num_var)*g_start_coef
-                            dag_est1, intercept = g.generate_final_dag(pen_bic= b_penalty, pen_gic=g_penalty,
+                            dag_est1, intercept, layers = g.generate_final_dag(pen_bic= b_penalty, pen_gic=g_penalty,
                             step_bic = decay_bic, step_gic = decay_gic,
                                 penalty_bic_decay_pattern = penalty_bic_decay_pattern, penalty_gic_decay_pattern = penalty_gic_decay_pattern, normalizing_factor = g_start_coef)
                             comp = compute_stats(dag_est1, dag_true, num_var)
@@ -87,7 +90,7 @@ decay_bic_list, decay_gic_list , penalty_bic_decay_pattern,
 
     return statistics, result
 
-sizes = [300, 1000]
+sizes = [300]
 
 ############
 ############  ecoli70
@@ -117,14 +120,14 @@ for arc in arcs:
 dag_true = dag_to_mat_true(arcs_num, colnames)
 
 
-statistics, result = experiment(arr, 46, dag_true, sizes, b_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], g_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], 
-decay_bic_list=[0], decay_gic_list =[0],
- penalty_bic_decay_pattern = division_decay_bic, 
- penalty_gic_decay_pattern =division_decay,filename= 'different_decay.csv',N=2)
+# statistics, result = experiment(arr, 46, dag_true, sizes, b_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], g_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], 
+# decay_bic_list=[0], decay_gic_list =[0],
+#  penalty_bic_decay_pattern = division_decay_bic, 
+#  penalty_gic_decay_pattern =division_decay,filename= 'different_decay.csv',N=20)
 
-    # statistics, result = experiment(arr, 46, dag_true, sizes, b_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], g_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], 
-    # decay_bic_list=[0], decay_gic_list =[0],
-    # penalty_bic_decay_pattern = division_decay, 
-    # penalty_gic_decay_pattern =division_decay,filename= 'same_decay.csv',N=1)
+statistics, result = experiment(arr, 46, dag_true, sizes, b_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], g_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], 
+    decay_bic_list=[0], decay_gic_list =[0],
+    penalty_bic_decay_pattern = division_decay, 
+    penalty_gic_decay_pattern =division_decay,filename= 'same_decay.csv',N=10)
 
 
