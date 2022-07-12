@@ -939,6 +939,7 @@ class Gadget():
     
     def generate_final_dag(self,pen_bic,pen_gic, step_bic , step_gic,normalizing_factor, penalty_bic_decay_pattern = linear_pattern, penalty_gic_decay_pattern = linear_pattern):
         dag = self.dags[0]
+        print(self.dags)
         arr= self.array
         previous_parent = list(dag[0])
         final_dag = dict()
@@ -967,7 +968,7 @@ class Gadget():
             print('layer',i,'penalty bic', penalty_bic, 'penalty gic', penalty_gic)
             penalty_bic = penalty_bic_decay_pattern(penalty_bic,step_bic, i, previous_parent_len, len(previous_parent),normalizing_factor)
             penalty_gic = penalty_gic_decay_pattern(penalty_gic,step_gic, i, previous_parent_len,  len(previous_parent), normalizing_factor)
-        return final_dag,intercept
+        return final_dag,intercept, self.dags[0]
         
     def _mcmc_run(self):
 
