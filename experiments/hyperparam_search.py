@@ -5,6 +5,7 @@ import pandas as pd
 import sumu
 import time
 import random
+import json
 from sklearn import preprocessing
 
 from glmnet import ElasticNet
@@ -55,7 +56,7 @@ def division_decay(penalty,step, layer, previous_parent_len, parent_len, normali
     return new_penalty
 
 def division_decay_bic(penalty,step, layer, previous_parent_len, parent_len, normalizing_factor):
-    return penalty
+    return penaltya
 
 def experiment(array, num_var,dag_true, sizes, b_start_coef_list, g_start_coef_list, 
 decay_bic_list, decay_gic_list , penalty_bic_decay_pattern,
@@ -67,6 +68,7 @@ decay_bic_list, decay_gic_list , penalty_bic_decay_pattern,
             stats = np.zeros(10)
             np.random.shuffle(arr)
             sample = arr[0:size]
+            np.savetxt(f"../results/sample{i}_arth150_1000.csv",sample,delimiter=";")
             # sample
             # warstwy
             data = sumu.Data(sample)
@@ -82,33 +84,39 @@ decay_bic_list, decay_gic_list , penalty_bic_decay_pattern,
                             dag_est1, intercept, layers = g.generate_final_dag(pen_bic= b_penalty, pen_gic=g_penalty,
                             step_bic = decay_bic, step_gic = decay_gic,
                                 penalty_bic_decay_pattern = penalty_bic_decay_pattern, penalty_gic_decay_pattern = penalty_gic_decay_pattern, normalizing_factor = g_start_coef)
+                            layers_list = [[float(y+1) for y in x] for x in layers]
+                            with open(f"../results/arth150_layers{i}_1000.json", 'w') as fp:
+                            	json.dump(layers_list, fp) 
+                            np.savetxt(f"../results/arth150_dag_est{i}_1000.csv",dag_to_mat(dag_est1,num_var),delimiter=";")   
                             comp = compute_stats(dag_est1, dag_true, num_var)
-                            statistics.append([i,size, b_start_coef, g_start_coef, decay_bic,decay_gic , comp[0], comp[1],comp[2]])
-    df = pd.DataFrame(statistics, columns = ['Experiment_number','size', 'b_start_coef', 'g_start_coef', 'decay_bic','decay_gic','TPR','FPR','SHD' ])
-    df.to_csv(filename)
-    print(df) 
+                            print(comp)
+                            #statistics.append([i,size, b_start_coef, g_start_coef, decay_bic,decay_gic , comp[0], comp[1],comp[2]])
+    #df = pd.DataFrame(statistics, columns = ['Experiment_number','size', 'b_start_coef', 'g_start_coef', 'decay_bic','decay_gic','TPR','FPR','SHD' ])
+    #df.to_csv(filename)
+    #print(df) 
+    statistics =[]
+    results = [] 
+    return statistics, result, layers, dag_est1, sample
 
-    return statistics, result
-
-sizes = [300]
+sizes = [1000]
 
 ############
 ############  ecoli70
-print('ecoli')
+print('arth150')
 
 
 start = time.time()
 
-df = pd.read_csv('../datasets/ecoli70.csv', sep = ';')
+df = pd.read_csv('../datasets/arth150.csv', sep = ';')
 arr = np.array(df)
 scaler = preprocessing.StandardScaler().fit(arr)
 arr = scaler.transform(arr)
 
 
 colnames = list(df.columns.values.tolist())
-arcs = pd.read_csv('../datasets/ecoli70_arcs.csv', sep = ';')
+arcs = pd.read_csv('../datasets/arth150_arcs.csv', sep = ';')
 
-arcs = np.array(arcs)
+arcs = np.array(arcs,dtype="str")
 cols = {}
 for i in range(len(colnames)):
     cols[colnames[i]] = i
@@ -118,16 +126,16 @@ for arc in arcs:
     arcs_num.append([cols[arc[0]], cols[arc[1]]])
 
 dag_true = dag_to_mat_true(arcs_num, colnames)
-
+np.savetxt("../results/true_dag_arth150.csv",dag_true,delimiter =";")
 
 # statistics, result = experiment(arr, 46, dag_true, sizes, b_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], g_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], 
 # decay_bic_list=[0], decay_gic_list =[0],
 #  penalty_bic_decay_pattern = division_decay_bic, 
 #  penalty_gic_decay_pattern =division_decay,filename= 'different_decay.csv',N=20)
 
-statistics, result = experiment(arr, 46, dag_true, sizes, b_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], g_start_coef_list=[0.5,0.1,0.05,0.005, 0.0005], 
+statistics, result, layers, dag_est1, sample = experiment(arr, 107, dag_true, sizes, b_start_coef_list=[0.5], g_start_coef_list=[0.5], 
     decay_bic_list=[0], decay_gic_list =[0],
     penalty_bic_decay_pattern = division_decay, 
-    penalty_gic_decay_pattern =division_decay,filename= 'same_decay.csv',N=10)
+    penalty_gic_decay_pattern =division_decay,filename= 'same_decay.csv',N=100)
 
 
