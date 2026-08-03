@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "..", "sumu-fork", "datasets")
+                        "..", "datasets")
 
 NETWORKS = {                    # name: (n_nodes, n_arcs) as documented
     "ecoli70":    (46, 70),
