@@ -1,0 +1,98 @@
+================================================================================================
+A. DOES THE BUGGY CODE REPRODUCE THE THESIS TABLES?
+   config: RSS criterion, no refit, threshold from positive coefficients only
+================================================================================================
+network          n  reps |  power repro  power thesis |   shd repro  shd thesis
+ecoli70        300    10 |         0.46          0.49 |        39.6        39.2
+ecoli70       1000    10 |         0.54          0.55 |        34.5        35.1
+magic-irri     300     9 |         0.19          0.24 |        84.6        85.9
+magic-irri    1000     6 |         0.37          0.38 |        67.0        79.3
+
+================================================================================================
+B. DOES THE FIXED CODE REPRODUCE wyniki.ods?
+================================================================================================
+
+--- GIC1  (reproduced with fixed_c2) ---
+network          n  reps |   power  target |     fdr  target |     shd  target |  ceiling
+ecoli70        300    10 |    0.67    0.69 |    0.32    0.26 |    35.4      30 |     0.72
+ecoli70       1000    10 |    0.75    0.76 |    0.27    0.23 |    27.1      23 |     0.80
+magic-niab     300    10 |    0.39    0.35 |    0.30    0.27 |    42.4      45 |     0.63
+magic-irri     300     9 |    0.35    0.35 |    0.33    0.26 |    73.7      73 |     0.63
+magic-irri    1000     6 |    0.70    0.62 |    0.21    0.24 |    39.5      48 |     0.83
+
+--- GIC2  (reproduced with fixed_c5) ---
+network          n  reps |   power  target |     fdr  target |     shd  target |  ceiling
+ecoli70        300    10 |    0.65    0.67 |    0.24    0.20 |    29.2      21 |     0.72
+ecoli70       1000    10 |    0.75    0.74 |    0.21    0.17 |    22.0      15 |     0.80
+magic-niab     300    10 |    0.20    0.21 |    0.32    0.27 |    53.0      53 |     0.63
+magic-irri     300     9 |    0.25    0.25 |    0.28    0.23 |    77.3      80 |     0.63
+magic-irri    1000     6 |    0.53    0.54 |    0.16    0.19 |    49.3      49 |     0.83
+
+================================================================================================
+C. EFFECT OF THE SIGN BUG ALONE (identical code path either way)
+================================================================================================
+network          n |  power buggy power fixed   delta |   shd buggy  shd fixed
+ecoli70        300 |         0.46        0.63   +0.17 |        39.6       30.4
+ecoli70       1000 |         0.54        0.74   +0.20 |        34.5       24.4
+magic-niab     300 |         0.20        0.36   +0.16 |        53.9       43.8
+magic-niab    1000 |         0.48        0.77   +0.29 |        35.9       18.7
+magic-irri     300 |         0.19        0.31   +0.13 |        84.6       72.4
+magic-irri    1000 |         0.37        0.66   +0.30 |        67.0       38.3
+
+================================================================================================
+D. FULL GIC PENALTY SWEEP (fixed code)
+================================================================================================
+
+ecoli70 n=300   [GIC1 0.69/0.26/30  GIC2 0.67/0.20/21]
+   fixed_c1   power=0.67  fdr=0.42  shd=  45.5   (reps=10)
+   fixed_c2   power=0.67  fdr=0.32  shd=  35.4   (reps=10)
+   fixed_c3   power=0.67  fdr=0.27  shd=  30.6   (reps=10)
+   fixed_c4   power=0.66  fdr=0.24  shd=  29.2   (reps=10)
+   fixed_c5   power=0.65  fdr=0.24  shd=  29.2   (reps=10)
+   fixed_c6   power=0.65  fdr=0.23  shd=  29.0   (reps=10)
+   fixed_c8   power=0.63  fdr=0.22  shd=  29.3   (reps=10)
+
+ecoli70 n=1000   [GIC1 0.76/0.23/23  GIC2 0.74/0.17/15]
+   fixed_c1   power=0.76  fdr=0.37  shd=  38.1   (reps=10)
+   fixed_c2   power=0.75  fdr=0.27  shd=  27.1   (reps=10)
+   fixed_c3   power=0.75  fdr=0.24  shd=  24.3   (reps=10)
+   fixed_c4   power=0.75  fdr=0.21  shd=  22.4   (reps=10)
+   fixed_c5   power=0.75  fdr=0.21  shd=  22.0   (reps=10)
+   fixed_c6   power=0.75  fdr=0.20  shd=  21.7   (reps=10)
+   fixed_c8   power=0.74  fdr=0.19  shd=  21.5   (reps=10)
+
+magic-niab n=300   [GIC1 0.35/0.27/45  GIC2 0.21/0.27/53]
+   fixed_c1   power=0.46  fdr=0.36  shd=  44.1   (reps=10)
+   fixed_c2   power=0.39  fdr=0.30  shd=  42.4   (reps=10)
+   fixed_c3   power=0.32  fdr=0.28  shd=  45.3   (reps=10)
+   fixed_c4   power=0.24  fdr=0.32  shd=  50.2   (reps=10)
+   fixed_c5   power=0.20  fdr=0.32  shd=  53.0   (reps=10)
+   fixed_c6   power=0.17  fdr=0.34  shd=  55.1   (reps=10)
+   fixed_c8   power=0.14  fdr=0.35  shd=  56.7   (reps=10)
+
+magic-niab n=1000
+   fixed_c1   power=0.80  fdr=0.28  shd=  25.7   (reps=10)
+   fixed_c2   power=0.77  fdr=0.21  shd=  19.4   (reps=10)
+   fixed_c3   power=0.74  fdr=0.17  shd=  18.7   (reps=10)
+   fixed_c4   power=0.70  fdr=0.16  shd=  20.1   (reps=10)
+   fixed_c5   power=0.65  fdr=0.15  shd=  23.1   (reps=10)
+   fixed_c6   power=0.58  fdr=0.16  shd=  27.8   (reps=10)
+   fixed_c8   power=0.45  fdr=0.19  shd=  36.1   (reps=10)
+
+magic-irri n=300   [GIC1 0.35/0.26/73  GIC2 0.25/0.23/80]
+   fixed_c1   power=0.38  fdr=0.40  shd=  78.1   (reps=9)
+   fixed_c2   power=0.35  fdr=0.33  shd=  73.7   (reps=9)
+   fixed_c3   power=0.30  fdr=0.26  shd=  73.3   (reps=9)
+   fixed_c4   power=0.27  fdr=0.27  shd=  75.4   (reps=9)
+   fixed_c5   power=0.25  fdr=0.28  shd=  77.3   (reps=9)
+   fixed_c6   power=0.22  fdr=0.29  shd=  79.7   (reps=9)
+   fixed_c8   power=0.20  fdr=0.31  shd=  81.7   (reps=9)
+
+magic-irri n=1000   [GIC1 0.62/0.24/48  GIC2 0.54/0.19/49]
+   fixed_c1   power=0.74  fdr=0.28  shd=  45.8   (reps=6)
+   fixed_c2   power=0.70  fdr=0.21  shd=  39.5   (reps=6)
+   fixed_c3   power=0.65  fdr=0.16  shd=  39.3   (reps=6)
+   fixed_c4   power=0.58  fdr=0.15  shd=  44.5   (reps=6)
+   fixed_c5   power=0.53  fdr=0.16  shd=  49.3   (reps=6)
+   fixed_c6   power=0.50  fdr=0.16  shd=  52.7   (reps=6)
+   fixed_c8   power=0.40  fdr=0.17  shd=  61.5   (reps=6)

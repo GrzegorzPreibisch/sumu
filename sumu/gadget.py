@@ -31,7 +31,10 @@ from .scorer import BDeu, BGe
 import numpy as np
 from .candidates import candidate_parent_algorithm as cpa
 from .stats import Stats, stats
-from glmnet import ElasticNet
+try:
+    from glmnet import ElasticNet
+except ImportError:                       # python-glmnet no longer builds on
+    from ._lasso_compat import ElasticNet  # current toolchains; see that module
 from copy import deepcopy
 
 # default parameter values used by multiple classes
@@ -836,17 +839,35 @@ class Gadget():
 
         return self.dags, self.dag_scores
 
-    def TL(self,x,y,pen_bic,pen_gic):
+    def TL(self, x, y, pen_bic, pen_gic, legacy_threshold=False):
+        """Thresholded lasso for one node.
+
+        BUGFIX 2026-08: the threshold used to be taken from the *positive*
+        coefficients only and compared without abs(), i.e.
+
+            thresholds = beta_bic[beta_bic > 0]
+            beta_thres[beta_thres < delta] = 0
+
+        Any delta > 0 therefore deleted every negative coefficient, so no
+        negative-weight edge could ever be recovered and a node whose
+        coefficients were all negative got no parents at all.  Since roughly
+        half the edges in the benchmark networks carry negative weights, this
+        cost about half the power.
+
+        Pass legacy_threshold=True to restore the old behaviour; that
+        reproduces the numbers printed in the dissertation, while the default
+        reproduces wyniki.ods.  See reproduction/README.md.
+        """
         m = ElasticNet()
         if len(x.shape)<2:
-           x.reshape((x.shape[0],1)) 
-    
+           x.reshape((x.shape[0],1))
+
         m = m.fit(x, y)
         betas = m.coef_path_
         intercepts = m.intercept_path_
         BIC = np.inf
         for i in range(betas.shape[1]):
-            
+
             RSS = np.sum((y-np.matmul(x,betas[:,i])-intercepts[i])**2)
             k = np.sum(betas[:,i]!=0)
             BIC_new  =  RSS+pen_bic*k
@@ -854,21 +875,27 @@ class Gadget():
                BIC = BIC_new
                beta_bic = betas[:,i]
                intercept = intercepts[i]
-        thresholds = beta_bic[beta_bic>0]
+        if legacy_threshold:
+            thresholds = beta_bic[beta_bic > 0]
+        else:
+            thresholds = np.abs(beta_bic[beta_bic != 0])
         thresholds.sort()
-        beta_gic = np.zeros_like(beta_bic) 
+        beta_gic = np.zeros_like(beta_bic)
         GIC = np.inf
         for delta in thresholds:
             beta_thres = deepcopy(beta_bic)
-            beta_thres[beta_thres< delta] = 0
+            if legacy_threshold:
+                beta_thres[beta_thres < delta] = 0
+            else:
+                beta_thres[np.abs(beta_thres) < delta] = 0
             RSS = np.sum((y-np.matmul(x,beta_thres)-intercept)**2)
             k = np.sum(beta_thres!=0)
             GIC_new  =  RSS+pen_gic*k
             if GIC_new < GIC :
                GIC = GIC_new
                beta_gic = beta_thres
-           
-        return beta_gic,intercept  
+
+        return beta_gic,intercept
 
     def _find_candidate_parents(self):
         self.l_score = LocalScore(data=self.data,
@@ -937,7 +964,7 @@ class Gadget():
     def linear_pattern(penalty,step, epoch, previous_parents_len, parents_len, normalizing_factor):
         return penalty + step
     
-    def generate_final_dag(self,pen_bic,pen_gic, step_bic , step_gic,normalizing_factor, penalty_bic_decay_pattern = linear_pattern, penalty_gic_decay_pattern = linear_pattern):
+    def generate_final_dag(self,pen_bic,pen_gic, step_bic , step_gic,normalizing_factor, penalty_bic_decay_pattern = linear_pattern, penalty_gic_decay_pattern = linear_pattern, legacy_threshold = False):
         dag = self.dags[0]
         print(self.dags)
         arr= self.array
@@ -957,7 +984,7 @@ class Gadget():
                 x = np.zeros((arr.shape[0], len(previous_parent)+1))
                 for col in range(len(previous_parent)):
                     x[:, col] = arr[:, previous_parent[col]]
-                beta,inter = self.TL(x,y,penalty_bic,penalty_gic)
+                beta,inter = self.TL(x,y,penalty_bic,penalty_gic,legacy_threshold=legacy_threshold)
                 final_dag[j] = list()
                 intercept[j] = inter   
                 for v in range(len(previous_parent)):

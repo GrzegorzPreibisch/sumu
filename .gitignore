@@ -1,0 +1,9 @@
+reproduction/cache/
+reproduction/eval/
+*.so
+*.egg-info/
+__pycache__/
+sumu/aps/_aps.cpp
+sumu/scores/_scorer.cpp
+sumu/weight_sum/_weight_sum.cpp
+build/
