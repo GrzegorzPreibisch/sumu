@@ -1,0 +1,5 @@
+"network","nodes","arcs","varsortability","R2sortability","var_ratio_max_min"
+"ecoli70",46,70,0.73,0.393,5.7
+"magic-niab",44,66,0.308,0.773,260.8
+"magic-irri",64,102,0.63,0.528,3814.9
+"arth150",107,150,0.631,0.239,187.7
