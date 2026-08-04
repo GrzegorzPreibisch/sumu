@@ -146,3 +146,71 @@ Supporting citations:
 4. **Keep the ceiling-vs-attained decomposition front and centre**; it is the new part.
 5. Still missing: a comparison against `sparsebn`/CCDr (Aragam & Zhou), the closest
    competitor by method, whose papers sit unread in `DAG/`.
+
+---
+
+## 6. Addendum — three more papers on these networks
+
+### Kitson & Constantinou (2025): our exact algorithm set, our exact metric basis
+
+**"Stable Structure Learning with HC-Stable and Tabu-Stable Algorithms", arXiv:2504.01740.**
+Seven continuous networks including **all four of ours**; n = 10², 10³, 10⁴, 10⁵;
+**25 replications** with variable order, names and row order randomised; ten algorithms —
+HC, Tabu, HC-Stable, Tabu-Stable, FGES, PC-Stable, GS, Inter-IAMB, **MMHC, H2PC** — a
+strict superset of our four. Metric basis verbatim: *"The structural metrics compare the
+CPDAG of the true graph and with that of the learned graph."* Same basis as
+`bnlearn::shd()`.
+
+**They report F1 and BSF, not SHD, and aggregate the structural results into Figure 4
+rather than tabulating them per network.** That makes our contribution precisely
+nameable: *same algorithm family and same CPDAG basis as Kitson & Constantinou (2025),
+but per-network SHD, power and FDR at fixed n, which they do not report.* Cite them and
+say exactly that.
+
+Their normalised-BIC table is worth borrowing for a different point — every learned
+graph **beats the true graph on BIC** (Ecoli70: Tabu −42.267 vs true −42.382; Arth150:
+Tabu-Stable −37.858 vs true −38.655). A clean illustration that fit and structural
+accuracy diverge.
+
+Their Table 9 also records outright failures at a 3-hour limit: on **ARTH150 at n=10,000
+FGES, MMHC and H2PC all fail**, and at n=100,000 six of ten algorithms fail. Useful when
+we justify our own sample sizes.
+
+### Zuo (2024), Purdue PhD thesis — F1 on all four, 50 replications
+
+C. Zuo, *Scalable Bayesian Methods for Probabilistic Graphical Models*, Purdue, 2024,
+DOI 10.25394/PGS.25674651.v1. n = 0.5p, p, 2p; **Recall, Precision, F1 only — no SHD.**
+
+ECOLI70 F1: HC 0.203 / 0.364 / 0.452 across the three sizes, MMHC 0.292 / 0.408 / 0.473,
+HPC 0.390 / 0.480 / 0.522, their own method 0.521 / 0.542 / 0.564.
+ARTH150 F1: HC 0.136 / 0.305 / 0.429, MMHC 0.310 / 0.415 / 0.523, HPC 0.357 / 0.448 / 0.509.
+
+Useful as a prior when sanity-checking our own numbers: HC is worst at small n and
+catches up by n = 2p; MMHC and HPC are the strongest classical methods.
+
+### Sato, Scutari & Imoto (2025) — the one source we could not retrieve
+
+*"Causal assessment of gene regulatory network in single-cell transcriptomics data based
+on Bayesian networks"*, bioRxiv, 19 Dec 2025, DOI 10.64898/2025.12.17.695014, package
+`github.com/noriakis/scstruc`. **ECOLI70 and ARTH150 at n = 100, 500, 1000** — our exact
+range — with HC, MMHC, GS, H2PC, TABU **plus LASSO, CCDr, GES, L0/L0L1/L0L2, MCP, SCAD,
+LiNGAM**, reporting **SHD, SID and F1**, data generated with `rbn()`.
+
+**This is the single most valuable comparison point in the literature for us, and it is
+paywalled to automated access** — bioRxiv returns 403 to every route tried. The numbers
+are in Figure 2A and **Supplementary Table S1**:
+https://www.biorxiv.org/content/10.64898/2025.12.17.695014v1.supplementary-material
+**Download it by hand.** Confirmed qualitatively: at ECOLI70 n=100 a hurdle model with
+zBIC had the lowest SHD while GES won on F1; at n=500 LASSO was best on SHD.
+
+### TriOpt — ARTH150 SHD at n = 10,000, exact table
+
+Joy & Zheleva, arXiv:2605.17465 (2026), linear SEM, **DAG-based** SHD:
+DAGMA 138.0, GOLEM 163.0, NOTEARS 140.4 ± 0.89, TriOpt 135.0.
+
+For scale: ARTH150 has 150 arcs, so these methods make roughly as many structural errors
+as there are true edges. The published `wyniki.ods` figure for our method on ARTH150 at
+**n = 1,000** is SHD 81 (GIC1) and 72 (GIC2). The comparison flatters us by a wide margin
+even at a tenth of the sample size — **but their SHD is DAG-based and ours is CPDAG-based,
+so this must not be presented as a like-for-like number.** It is a motivating observation,
+not a result, until someone runs both on the same footing.
