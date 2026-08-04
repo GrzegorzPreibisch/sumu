@@ -214,3 +214,70 @@ as there are true edges. The published `wyniki.ods` figure for our method on ART
 even at a tenth of the sample size — **but their SHD is DAG-based and ours is CPDAG-based,
 so this must not be presented as a like-for-like number.** It is a motivating observation,
 not a result, until someone runs both on the same footing.
+
+---
+
+## 7. The (power, FDR) operating point — our strongest claim
+
+**Aragam & Zhou, "Concave Penalized Estimation of Sparse Gaussian Bayesian Networks",
+JMLR 16:2273–2328 (2015), Table 1.** ER random DAGs, weights U[0.5,2], unit error
+variance, 50 replications. Their FDR charges reversed edges as false discoveries, same
+as ours. SHD is DAG- and skeleton-based, **not CPDAG**.
+
+| p = 200 (T = 185) | CCDr-MCP | CCDr-ℓ1 | GES | HC | MMHC | PC |
+|---|---|---|---|---|---|---|
+| TPR | 0.45 | 0.40 | 0.86 | 0.69 | 0.49 | 0.48 |
+| FDR | 0.44 | 0.48 | 0.71 | 0.78 | 0.33 | 0.31 |
+
+The pattern holds at p = 50 and p = 100 too: **no method in that table attains
+TPR ≥ 0.7 at FDR below 0.69.** GES buys recall 0.71–0.86 at FDR 0.69–0.71; HC gets
+0.59–0.69 at FDR 0.76–0.78; the methods with decent FDR (PC 0.31–0.37, MMHC 0.33–0.40)
+sit at TPR 0.36–0.49. CCDr publishes **TPR 0.31–0.45 at FDR 0.44–0.46** as its own
+headline.
+
+**Our ECOLI70 n=1000 point — power 0.79 at FDR 0.22 — dominates every row.** That is the
+claim to lead with, and it should be stated as a Pareto point, e.g. *"no method in
+Aragam & Zhou (2015, Table 1) attains TPR ≥ 0.7 at FDR < 0.69."*
+
+The closest published observational analogue is Fu & Zhou (JASA 2013) Table 2, topping
+out at TPR 0.815 / FDR 0.245. Their better numbers (TPR 0.75–0.86 at FDR 0.09–0.23) are
+**interventional** — one intervention per node — a materially easier problem.
+Ghoshal & Honorio's FDR = 0 is a theory-regime demonstration with n set by their own
+sample-complexity bound, not a benchmark result.
+
+**Who even reports FDR:** Aragam & Zhou ✅, Fu & Zhou ✅, Ghoshal & Honorio ✅ (as
+precision). NOTEARS reports it in a figure only. **GOLEM, NoCurl and DAGMA do not report
+FDR at all.** van de Geer & Bühlmann (2013) and Loh & Bühlmann (2014) contain no
+simulations whatsoever.
+
+### Do NOT claim SHD superiority against the synthetic benchmarks
+
+Per-edge difficulty differs by an order of magnitude and this would not survive review:
+
+| | SHD | true edges | errors per true edge |
+|---|---|---|---|
+| NOTEARS, ER3 d=50 | 8.39 | 150 | **0.056** |
+| DAGMA, d=50 (ER4/SF4 avg) | 12.03 | ~200 | ~0.06 |
+| **ours, ECOLI70 n=1000** | **22.9** | **70** | **0.33** |
+| tabu, ECOLI70 n=1000 | 48.8 | 70 | 0.70 |
+
+A headline like "our SHD 23 beats DAGMA's 12" is meaningless — their graphs are far
+easier per edge. **The honest SHD comparison is against our own tabu baseline on the
+same graph, where we are 2.1x better.** Compounding it, all of NOTEARS/GOLEM/DAGMA/
+NoCurl compute *directed* SHD while ours is CPDAG-based.
+
+### Nobody has run these methods on our networks
+
+Confirmed: **none** of sparsebn/CCDr, Fu & Zhou, NOTEARS, GOLEM, DAGMA, NoCurl,
+Ghoshal & Honorio evaluated on ECOLI70, MAGIC-NIAB, MAGIC-IRRI or ARTH150. sparsebn uses
+`pathfinder`, Sachs and LOAD; the rest use ER/SF synthetics.
+
+And **Scutari, Graafland & Gutiérrez (IJAR 2019)** — the paper that established this
+four-network suite — reports scaled SHD in **scatter plots, not tables**. So there is no
+published per-algorithm ECOLI70 SHD number to cite against, which means our own tabu
+baseline is the right and only comparator. That is a defensible position, not a gap.
+
+**Open item worth checking before citing:** one extraction suggested Aragam & Zhou
+*"selected the DAG with smallest SHD from each algorithm's solution path"* — i.e. oracle
+tuning. Unconfirmed. If true it weakens their Table 1 as a baseline and strengthens us
+further, so it is worth verifying in the PDF before leaning on it.
