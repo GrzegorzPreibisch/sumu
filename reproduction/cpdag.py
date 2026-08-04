@@ -6,6 +6,14 @@ whose edge state differs. Edges whose orientation is not identifiable from the d
 therefore cost nothing, which makes it strictly more forgiving than the directed
 SHD the 2022 Python compute_stats produced.
 
+CAUTION: under this metric the layering oracle -- keep exactly the true edges whose
+parent sits in a strictly earlier layer -- is NOT SHD-optimal, though it remains
+optimal for power and FDR. The oracle drops every unreachable true edge, costing one
+skeleton error each; a real selector that puts some of those edges back in the wrong
+direction keeps the skeleton right, and CPDAG SHD forgives the orientation. On
+ecoli70 n=1000 GIC2 scores 13.4 against the oracle's 15.1. The oracle IS a valid
+lower bound for the directed SHD (12.4 there).
+
 Input adjacency convention is the project's: mat[child, parent] == 1.
 """
 
